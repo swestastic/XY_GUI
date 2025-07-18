@@ -21,6 +21,7 @@ plot_observable = "Magnetization" # what to plot in the live graph
 algorithm = "Metropolis" # which algorithm to use
 sweepcount = 1 # number of sweeps done
 count = 0 # counter for plot updates
+theta = np.pi
 
 # initialize spins randomly
 spins = 2*np.pi*np.random.rand(L, L)
@@ -45,8 +46,25 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
   M = np.sqrt(Mx**2+My**2)
   return np.array([Mx,My,M])
 
+def update_theta(AcceptanceRatio,theta,counter,skips):
+    ##Alternative method to try: Halving and doubling based on threshhold (e.g if AR>0.5, theta=theta*2, if AR<0.5, theta=theta/2)
+    if counter % skips == 0:
+        if AcceptanceRatio >= 0.5:
+            # theta=np.pi
+            theta *= 2
+            if theta > np.pi:
+                theta = np.pi # This is the maximum range, anything larger than this will be cut off anyways
+        else:
+            #theta=4*(0.1-np.pi)*(AcceptanceRatio-0.5)**2+np.pi
+            # theta=0.1+2*np.pi*AcceptanceRatio
+            theta /= 2
+        
+        if theta < 0.1:
+            theta = 0.1
+    return theta
+
 @jit(nopython=True)
-def sweep(spins,T,J,Acceptance, sweepcount):
+def Metropolis(spins,T,J,Acceptance, sweepcount):
     L = spins.shape[0]
     sweepcount += L**2
     flipped_sites = []
@@ -70,6 +88,33 @@ def sweep(spins,T,J,Acceptance, sweepcount):
             flipped_sites.append((x,y)) # we don't need this for continuous spins
 
     return spins, Acceptance, flipped_sites, sweepcount
+
+@jit(nopython=True)
+def Metropolis_Limited_Change(spins,T,J,Acceptance,theta, sweepcount):
+    L = spins.shape[0]
+    sweepcount += L**2
+    flipped_sites = []
+    for i in prange(L**2):
+        x = np.random.randint(L)
+        y = np.random.randint(L)
+        saved = spins[x,y] #save the value in case we revert back to it
+        phi=np.random.uniform(saved-theta,saved+theta)%(2*np.pi)
+                # The difference in energy comes solely from spin at (x,y) and its neighbors.
+                # Here comes Eqn 3
+        dE = -J*(np.cos(phi-spins[x-1,y])+
+                    np.cos(phi-spins[(x+1)%L,y])+
+                    np.cos(phi-spins[x,y-1])+
+                    np.cos(phi-spins[x,(y+1)%L])-(np.cos(spins[x,y]-spins[x-1,y])+
+                    np.cos(spins[x,y]-spins[(x+1)%L,y])+
+                    np.cos(spins[x,y]-spins[x,y-1])+
+                    np.cos(spins[x,y]-spins[x,(y+1)%L])))
+
+        # Applying the Metropolis criteria
+        if np.random.random() < np.exp(-dE/T):
+            spins[x,y]=phi #update the value
+            Acceptance += 1 #acceptances are now counted
+            flipped_sites.append((x,y))
+    return spins,Acceptance,flipped_sites,sweepcount
 
 @jit(nopython=True)
 def Wolff(spins,J,T):
@@ -216,9 +261,13 @@ def update_algorithm_choice(event):
     # reset_for_parameter_change()
 
 def run_simulation():
-    global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm
+    global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
     if algorithm == "Metropolis":
-        spins, Acceptance, flipped_sites, sweepcount = sweep(spins, T, J, Acceptance, sweepcount)
+        spins, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, Acceptance, sweepcount)
+    elif algorithm == "Metropolis Limited Change":
+        spins, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, Acceptance, theta, sweepcount)
+        AcceptanceRatio = Acceptance / sweepcount
+        theta = update_theta(AcceptanceRatio, theta, count, 1)
     elif algorithm == "Wolff":
         spins, cluster = Wolff(spins, J, T)
         E = Energy(spins, J)
@@ -328,7 +377,7 @@ magnetization_label.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
 
 algorithm_label = ttk.Label(slider_frame, text="Algorithm:")
 algorithm_label.grid(row=7, column=0, padx=5, pady=5)
-algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Wolff"], state="readonly")
+algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Metropolis Limited Change", "Wolff"], state="readonly")
 algorithm_dropdown.current(0)
 algorithm_dropdown.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
 
