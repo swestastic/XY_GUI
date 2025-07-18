@@ -46,21 +46,20 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
   M = np.sqrt(Mx**2+My**2)
   return np.array([Mx,My,M])
 
-def update_theta(AcceptanceRatio,theta,counter,skips):
+def update_theta(AcceptanceRatio,theta,counter):
     ##Alternative method to try: Halving and doubling based on threshhold (e.g if AR>0.5, theta=theta*2, if AR<0.5, theta=theta/2)
-    if counter % skips == 0:
-        if AcceptanceRatio >= 0.5:
-            # theta=np.pi
-            theta *= 2
-            if theta > np.pi:
-                theta = np.pi # This is the maximum range, anything larger than this will be cut off anyways
-        else:
-            #theta=4*(0.1-np.pi)*(AcceptanceRatio-0.5)**2+np.pi
-            # theta=0.1+2*np.pi*AcceptanceRatio
-            theta /= 2
-        
-        if theta < 0.1:
-            theta = 0.1
+    if AcceptanceRatio >= 0.5:
+        # theta=np.pi
+        theta *= 2
+        if theta > np.pi:
+            theta = np.pi # This is the maximum range, anything larger than this will be cut off anyways
+    else:
+        #theta=4*(0.1-np.pi)*(AcceptanceRatio-0.5)**2+np.pi
+        # theta=0.1+2*np.pi*AcceptanceRatio
+        theta /= 2
+    
+    if theta < 0.1:
+        theta = 0.1
     return theta
 
 @jit(nopython=True)
@@ -264,10 +263,14 @@ def run_simulation():
     global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
     if algorithm == "Metropolis":
         spins, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, Acceptance, sweepcount)
+        E = Energy(spins, J)
+        Mx, My, M = Mag(spins)
     elif algorithm == "Metropolis Limited Change":
         spins, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, Acceptance, theta, sweepcount)
         AcceptanceRatio = Acceptance / sweepcount
-        theta = update_theta(AcceptanceRatio, theta, count, 1)
+        theta = update_theta(AcceptanceRatio, theta, count)
+        E = Energy(spins, J)
+        Mx, My, M = Mag(spins)
     elif algorithm == "Wolff":
         spins, cluster = Wolff(spins, J, T)
         E = Energy(spins, J)
