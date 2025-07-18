@@ -71,6 +71,53 @@ def sweep(spins,T,J,Acceptance, sweepcount):
 
     return spins, Acceptance, flipped_sites, sweepcount
 
+@jit(nopython=True)
+def Wolff(spins,J,T):
+    # Pick a random site to start the cluster 
+    x = np.random.randint(L)
+    y  = np.random.randint(L) 
+    #value = array[x,y] # Save the value of the spin at that site
+    
+    # Generate a random angle between 0 and 2pi
+    phi = np.random.rand()*2*np.pi 
+    cluster = []
+    cluster.append((x,y)) # add the site to the cluster
+    already_flipped=[]
+    backup = spins.copy()
+
+    for i,j in cluster: # add nearest neighbors to cluster based on probability
+        north = i,(j+1)%L
+        south = i,(j-1)%L
+        east = (i+1)%L,j
+        west = (i-1)%L,j
+        neighbors = [north,south,east,west]
+        
+        if (i,j) not in already_flipped: #maybe create a duplicate of the matrix? and reference values from that idk 
+            theta_i = spins[i,j] 
+            spins[i,j] = (np.pi-theta_i+2*phi)%(2*np.pi) #update the value, but the probability is based on the old value
+            already_flipped.append((i,j))
+        else:
+            theta_i = backup[i,j]
+            
+        for k in neighbors:
+            theta_j = spins[k]
+            theta_prime = (np.pi-theta_j+2*phi)%(2*np.pi) #This is the new angle that will be flipped to
+            rand = np.random.rand()
+            prob = 1-np.exp(min(0,-2*J/T*np.cos(phi-theta_i)*np.cos(phi-theta_j)))
+            #print(prob)
+            if rand < prob and k not in cluster:
+                cluster.append(k)
+                if k not in already_flipped:
+                    spins[k] = theta_prime #update the value
+                    already_flipped.append(k)
+
+    ClusterSize = len(cluster)
+
+    return spins,cluster
+    # print(cluster)
+    # print(already_flipped)
+
+
 def spins_to_image_init(spins):
     L = spins.shape[0]
     rgb_array = np.zeros((L, L, 3), dtype=np.uint8)
@@ -173,7 +220,9 @@ def run_simulation():
     if algorithm == "Metropolis":
         spins, Acceptance, flipped_sites, sweepcount = sweep(spins, T, J, Acceptance, sweepcount)
     elif algorithm == "Wolff":
-        pass
+        spins, cluster = Wolff(spins, J, T)
+        E = Energy(spins, J)
+        Mx, My, M = Mag(spins)
 
     pil_img = spins_to_image(spins)
     label_img = ImageTk.PhotoImage(pil_img)
@@ -204,7 +253,7 @@ rgb_array = spins_to_image_init(spins)
 ## Set up the GUI
 # Create the main window
 root = tk.Tk()
-root.title("Ising Model GUI")
+root.title("XY Model GUI")
 
 # Create the image frame and set it to the left side of the window
 image_frame = ttk.Frame(root)
@@ -279,7 +328,7 @@ magnetization_label.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
 
 algorithm_label = ttk.Label(slider_frame, text="Algorithm:")
 algorithm_label.grid(row=7, column=0, padx=5, pady=5)
-algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis"], state="readonly")
+algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Wolff"], state="readonly")
 algorithm_dropdown.current(0)
 algorithm_dropdown.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
 
