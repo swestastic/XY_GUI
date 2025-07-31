@@ -170,6 +170,21 @@ def Wolff(spins,T, J, L):
 
     return spins,cluster
 
+@njit(fastmath=FASTMATH, cache=CACHE)
+def overrelaxation(spins, L):
+    for i in range(L):
+        for j in range(L):
+            # Sum of neighbor spin vectors (local field)
+            hx = np.cos(spins[(i+1)%L, j]) + np.cos(spins[i-1, j]) + \
+                 np.cos(spins[i, (j+1)%L]) + np.cos(spins[i, j-1])
+            hy = np.sin(spins[(i+1)%L, j]) + np.sin(spins[i-1, j]) + \
+                 np.sin(spins[i, (j+1)%L]) + np.sin(spins[i, j-1])
+            
+            theta_local = np.arctan2(hy, hx)
+            # Reflect spin across local field direction
+            spins[i, j] = (2 * theta_local - spins[i, j]) % (2 * np.pi)
+    return spins
+
 ############################# Image Generation #############################
 
 def init_rgb_array(spins, L):
@@ -257,8 +272,11 @@ def update_observable_labels():
     root.after(50, update_observable_labels)
 
 def update_algorithm_choice(event):
-    global algorithm
+    global algorithm, flipped_sites
     algorithm = algorithm_dropdown.get()
+    if algorithm == "Overrelaxation":
+        # For Overrelaxation, update all sites, so flipped_sites is all indices
+        flipped_sites = [(i, j) for i in range(L) for j in range(L)]
 
 def update_size_choice(event):
     global L, scale, spins, rgb_array, label_img, label, E, M
@@ -303,7 +321,7 @@ def update_plot(E, M, L, data_buffer):
     root.after_idle(canvas.draw)
 
 def run_simulation():
-    global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
+    global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta, flipped_sites
     if algorithm == "Metropolis":
         spins, E, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, L, E, Acceptance, sweepcount)
         Mx, My, M = Mag(spins)
@@ -313,10 +331,13 @@ def run_simulation():
         theta = update_theta(AcceptanceRatio, theta)
         Mx, My, M = Mag(spins)
     elif algorithm == "Wolff":
-        spins, cluster = Wolff(spins, T, J, L)
+        spins, flipped_sites = Wolff(spins, T, J, L)
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
-
+    elif algorithm == "Overrelaxation":
+        spins = overrelaxation(spins, L)
+        E = Energy(spins, J)
+        Mx, My, M = Mag(spins)
     # update the image
     pil_img = update_spins_image(spins, flipped_sites, rgb_array, scale)
     label_img = ImageTk.PhotoImage(pil_img)
@@ -424,7 +445,7 @@ magnetization_label.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
 
 algorithm_label = ttk.Label(slider_frame, text="Algorithm:")
 algorithm_label.grid(row=7, column=0, padx=5, pady=5)
-algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Metropolis Limited Change", "Wolff"], state="readonly")
+algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Metropolis Limited Change", "Wolff", "Overrelaxation"], state="readonly")
 algorithm_dropdown.current(0)
 algorithm_dropdown.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
 
@@ -437,6 +458,7 @@ advanced_btn.grid(row=9, column=0, columnspan=3, padx=5, pady=10)
 if not CACHE:
     Wolff(spins, T, J, L)
     Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount)
+    overrelaxation(spins, L)
 
 # run the window and simulation
 root.after(50, update_observable_labels)
