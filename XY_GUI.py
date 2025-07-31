@@ -269,6 +269,27 @@ def update_algorithm_choice(event):
     algorithm = algorithm_dropdown.get()
     # reset_for_parameter_change()
 
+def open_advanced_options():
+    def apply_options():
+        global FASTMATH, PARALLEL
+        FASTMATH = fastmath_var.get()
+        PARALLEL = parallel_var.get()
+        adv_win.destroy()
+
+    adv_win = tk.Toplevel(root)
+    adv_win.title("Advanced Options")
+    adv_win.geometry("250x150")
+    fastmath_var = tk.BooleanVar(value=FASTMATH)
+    parallel_var = tk.BooleanVar(value=PARALLEL)
+
+    fastmath_check = ttk.Checkbutton(adv_win, text="Enable FASTMATH", variable=fastmath_var)
+    fastmath_check.pack(pady=10)
+    parallel_check = ttk.Checkbutton(adv_win, text="Enable PARALLEL", variable=parallel_var)
+    parallel_check.pack(pady=10)
+
+    apply_btn = ttk.Button(adv_win, text="Apply", command=apply_options)
+    apply_btn.pack(pady=10)
+
 def run_simulation():
     global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
     if algorithm == "Metropolis":
@@ -395,6 +416,9 @@ algorithm_dropdown.current(0)
 algorithm_dropdown.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
 
 algorithm_dropdown.bind("<<ComboboxSelected>>", update_algorithm_choice)
+
+advanced_btn = ttk.Button(slider_frame, text="Advanced Options", command=open_advanced_options)
+advanced_btn.grid(row=9, column=0, columnspan=3, padx=5, pady=10)
 
 # precompile numba functions
 if not CACHE:
