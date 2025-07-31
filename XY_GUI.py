@@ -269,6 +269,16 @@ def update_algorithm_choice(event):
     algorithm = algorithm_dropdown.get()
     # reset_for_parameter_change()
 
+def update_size_choice(event):
+    global L, scale, spins, rgb_array, label_img, label, E, M
+    L = int(size_dropdown.get())
+    scale = 512 // L
+    spins = np.random.choice([-1, 1], size=(L, L)).astype(np.int32)
+    rgb_array = spins_to_image_init(spins)
+    pil_img = spins_to_image(spins)
+    label_img = ImageTk.PhotoImage(pil_img)
+    reset_for_parameter_change()
+
 def open_advanced_options():
     def apply_options():
         global FASTMATH, PARALLEL
@@ -399,6 +409,15 @@ observable_dropdown.current(0)
 observable_dropdown.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
 
 observable_dropdown.bind("<<ComboboxSelected>>", update_plot_choice)
+
+size_label = ttk.Label(slider_frame, text="Size (L):")
+size_label.grid(row=10, column=0, padx=5, pady=5)
+
+size_dropdown = ttk.Combobox(slider_frame, values=[4, 8, 16, 32, 64, 128, 256], state="readonly")
+size_dropdown.current(4)
+size_dropdown.grid(row=10, column=0, columnspan=3, padx=5, pady=5)
+
+size_dropdown.bind("<<ComboboxSelected>>", update_size_choice)
 
 acceptance_label = ttk.Label(slider_frame, text=f"Acceptance: {Acceptance/sweepcount:.3f}")
 acceptance_label.grid(row=4, column=0, columnspan=3, padx=5, pady=5)
