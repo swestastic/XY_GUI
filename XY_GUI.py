@@ -279,13 +279,16 @@ def update_algorithm_choice(event):
         flipped_sites = [(i, j) for i in range(L) for j in range(L)]
 
 def update_size_choice(event):
-    global L, scale, spins, rgb_array, label_img, label, E, M
+    global L, scale, spins, rgb_array, label_img, label, algorithm, flipped_sites
     L = int(size_dropdown.get())
     scale = 512 // L
     spins = np.random.rand(L, L) * 2 * np.pi
     rgb_array = init_rgb_array(spins, L)
     pil_img = update_spins_image(spins, [], rgb_array, scale)
     label_img = ImageTk.PhotoImage(pil_img)
+    if algorithm == "Overrelaxation":
+        # For Overrelaxation, update all sites, so flipped_sites is all indices
+        flipped_sites = [(i, j) for i in range(L) for j in range(L)]
     reset_for_parameter_change()
 
 def open_advanced_options():
