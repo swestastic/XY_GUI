@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 import random
-from numba import njit, prange
+from numba import njit, prange, float64, int32
 from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -37,7 +37,7 @@ plot_observable = "Magnetization" # "Magnetization", "Energy", or "Acceptance"
 algorithm = "Metropolis" # "Metropolis", "Metropolis Limited Change", or "Wolff"
 
 ############################# Observable Calculation Functions #############################
-@njit(fastmath=FASTMATH, cache=CACHE, parallel=True)
+@njit(float64(float64[:,:], float64), parallel=PARALLEL, fastmath=FASTMATH, cache=CACHE)
 def Energy(spins, J):
     TotalEnergy = 0.0
     L = spins.shape[0]
@@ -60,11 +60,10 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
 
 ############################# Monte Carlo Algorithms #############################
 @njit(fastmath=FASTMATH, cache=CACHE)
-def Metropolis(spins,T,J,Acceptance, sweepcount):
-    L = spins.shape[0]
+def Metropolis(spins, T, J, L, Acceptance, sweepcount):
     sweepcount += L**2
     flipped_sites = []
-    for i in prange(L**2):
+    for i in range(L**2):
         phi=2*np.pi*np.random.rand() #phi is our new random angle between 0,2pi
         x = np.random.randint(L)
         y = np.random.randint(L)
@@ -86,8 +85,7 @@ def Metropolis(spins,T,J,Acceptance, sweepcount):
     return spins, Acceptance, flipped_sites, sweepcount
 
 @njit(fastmath=FASTMATH, cache=CACHE)
-def Metropolis_Limited_Change(spins,T,J,Acceptance,theta, sweepcount):
-    L = spins.shape[0]
+def Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount):
     sweepcount += L**2
     flipped_sites = []
     for i in prange(L**2):
@@ -127,7 +125,7 @@ def update_theta(AcceptanceRatio,theta):
     return theta
 
 @njit(fastmath=FASTMATH, cache=CACHE)
-def Wolff(spins,J,T):
+def Wolff(spins,T, J, L):
     # Pick a random site to start the cluster 
     x = np.random.randint(L)
     y  = np.random.randint(L) 
@@ -267,13 +265,12 @@ def update_observable_labels():
 def update_algorithm_choice(event):
     global algorithm
     algorithm = algorithm_dropdown.get()
-    # reset_for_parameter_change()
 
 def update_size_choice(event):
     global L, scale, spins, rgb_array, label_img, label, E, M
     L = int(size_dropdown.get())
     scale = 512 // L
-    spins = np.random.choice([-1, 1], size=(L, L)).astype(np.int32)
+    spins = np.random.rand(L, L) * 2 * np.pi
     rgb_array = spins_to_image_init(spins)
     pil_img = spins_to_image(spins)
     label_img = ImageTk.PhotoImage(pil_img)
@@ -303,17 +300,17 @@ def open_advanced_options():
 def run_simulation():
     global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
     if algorithm == "Metropolis":
-        spins, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, Acceptance, sweepcount)
+        spins, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, L, Acceptance, sweepcount)
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
     elif algorithm == "Metropolis Limited Change":
-        spins, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, Acceptance, theta, sweepcount)
+        spins, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount)
         AcceptanceRatio = Acceptance / sweepcount
         theta = update_theta(AcceptanceRatio, theta)
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
     elif algorithm == "Wolff":
-        spins, cluster = Wolff(spins, J, T)
+        spins, cluster = Wolff(spins, T, J, L)
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
 
@@ -441,8 +438,8 @@ advanced_btn.grid(row=9, column=0, columnspan=3, padx=5, pady=10)
 
 # precompile numba functions
 if not CACHE:
-    Wolff(spins, J, T)
-    Metropolis_Limited_Change(spins, T, J, Acceptance, theta, sweepcount)
+    Wolff(spins, T, J, L)
+    Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount)
 
 # run the window and simulation
 root.after(50, update_observable_labels)

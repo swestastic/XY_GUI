@@ -48,15 +48,7 @@ Simply run `python3 XY_GUI.py` to open a Tkinter window and run the simulation. 
 
 - Add external magnetic field functionality and slider
 
-- Add lattice scale and size adjustments
-
-- Add live plots for energy and magnetization
-
 - Add the ability to save data from simulation runs
-
-- Add Wolff and worm algorithm support
-
-- Make the UI a bit nicer
 
 - Possibly add a quiver mode? Where it would show arrows rather than colors. This may be more resource intensive though
 
