@@ -43,16 +43,17 @@ algorithm = "Metropolis" # "Metropolis", "Metropolis Limited Change", or "Wolff"
 # initialize spins randomly
 spins = 2*np.pi*np.random.rand(L, L)
 
-@njit(fastmath=FASTMATH, parallel=PARALLEL, cache=CACHE)
-def Energy(spins,J): # Calculates the energy of a given lattice of spins
-  # Assumes a square lattice
-  TotalEnergy=0
-  L=spins.shape[0] 
-  for i in prange(L):
-    for j in prange(L):
-      TotalEnergy+= np.cos(spins[i,j]-spins[i-1,j]) + np.cos(spins[i,j]-spins[(i+1)%L,j])  +np.cos(spins[i,j]-spins[i,j-1]) + np.cos(spins[i,j]-spins[i,(j+1)%L])
-  TotalEnergy*=-J/2
-  return TotalEnergy
+@njit(fastmath=FASTMATH, cache=CACHE, parallel=True)
+def Energy(spins, J):
+    TotalEnergy = 0.0
+    L = spins.shape[0]
+    for i in prange(L):
+        for j in range(L):
+            TotalEnergy += (
+                np.cos(spins[i, j] - spins[(i+1)%L, j]) +  # down neighbor
+                np.cos(spins[i, j] - spins[i, (j+1)%L])    # right neighbor
+            )
+    return -J * TotalEnergy
 
 @njit(fastmath=FASTMATH, cache=CACHE)
 def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx,My,M]
