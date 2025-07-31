@@ -44,8 +44,6 @@ Simply run `python3 XY_GUI.py` to open a Tkinter window and run the simulation. 
 
 ## Future Work
 
-- Improve the efficiency of the image drawing by storing a persistent version of `rgb_array` and using `flipped_sites` to only update necessary sites, rather than redrawing the entire image from scratch every time
-
 - Add external magnetic field functionality and slider
 
 - Add the ability to save data from simulation runs
