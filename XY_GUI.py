@@ -14,9 +14,6 @@ import argparse
 parser = argparse.ArgumentParser(description="Ising Model Simulation GUI")
 parser.add_argument("--cache", type=bool, default=False, help="Enable caching for faster simulations")
 
-scale = 8 # scaling factor for display
-update_delay = 5 # milliseconds between updates
-
 # parameters
 L = 64 # lattice size (LxL)
 T = 0.866 # temperature
@@ -30,7 +27,6 @@ count = 0 # counter for plot updates
 theta = np.pi
 
 scale = 512 // L # scaling factor for display
-simulation_update_delay = 16 # milliseconds between updates, 16ms ~ 60 FPS 
 
 # Numba settings
 FASTMATH = True
@@ -40,9 +36,7 @@ CACHE = parser.parse_args().cache
 plot_observable = "Magnetization" # "Magnetization", "Energy", or "Acceptance"
 algorithm = "Metropolis" # "Metropolis", "Metropolis Limited Change", or "Wolff"
 
-# initialize spins randomly
-spins = 2*np.pi*np.random.rand(L, L)
-
+############################# Observable Calculation Functions #############################
 @njit(fastmath=FASTMATH, cache=CACHE, parallel=True)
 def Energy(spins, J):
     TotalEnergy = 0.0
@@ -64,20 +58,7 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
   M = np.sqrt(Mx**2+My**2)
   return np.array([Mx,My,M])
 
-@njit(fastmath=FASTMATH, cache=CACHE)
-def update_theta(AcceptanceRatio,theta):
-    ##Alternative method to try: Halving and doubling based on threshhold (e.g if AR>0.5, theta=theta*2, if AR<0.5, theta=theta/2)
-    if AcceptanceRatio >= 0.5:
-        theta *= 2
-        if theta > np.pi:
-            theta = np.pi # This is the maximum range, anything larger than this will be cut off anyways
-    else:
-        theta /= 2
-    
-    if theta < 0.1:
-        theta = 0.1
-    return theta
-
+############################# Monte Carlo Algorithms #############################
 @njit(fastmath=FASTMATH, cache=CACHE)
 def Metropolis(spins,T,J,Acceptance, sweepcount):
     L = spins.shape[0]
@@ -132,6 +113,20 @@ def Metropolis_Limited_Change(spins,T,J,Acceptance,theta, sweepcount):
     return spins,Acceptance,flipped_sites,sweepcount
 
 @njit(fastmath=FASTMATH, cache=CACHE)
+def update_theta(AcceptanceRatio,theta):
+    ##Alternative method to try: Halving and doubling based on threshhold (e.g if AR>0.5, theta=theta*2, if AR<0.5, theta=theta/2)
+    if AcceptanceRatio >= 0.5:
+        theta *= 2
+        if theta > np.pi:
+            theta = np.pi # This is the maximum range, anything larger than this will be cut off anyways
+    else:
+        theta /= 2
+    
+    if theta < 0.1:
+        theta = 0.1
+    return theta
+
+@njit(fastmath=FASTMATH, cache=CACHE)
 def Wolff(spins,J,T):
     # Pick a random site to start the cluster 
     x = np.random.randint(L)
@@ -174,9 +169,8 @@ def Wolff(spins,J,T):
     ClusterSize = len(cluster)
 
     return spins,cluster
-    # print(cluster)
-    # print(already_flipped)
 
+############################# Image Generation #############################
 
 def spins_to_image_init(spins):
     L = spins.shape[0]
@@ -402,6 +396,10 @@ algorithm_dropdown.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
 
 algorithm_dropdown.bind("<<ComboboxSelected>>", update_algorithm_choice)
 
+# precompile numba functions
+if not CACHE:
+    Wolff(spins, J, T)
+    Metropolis_Limited_Change(spins, T, J, Acceptance, theta, sweepcount)
 
 # run the window and simulation
 root.after(50, update_observable_labels)
