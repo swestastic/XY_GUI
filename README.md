@@ -52,6 +52,8 @@ Simply run `python3 XY_GUI.py` to open a Tkinter window and run the simulation. 
 
 - Possibly add a quiver mode? Where it would show arrows rather than colors. This may be more resource intensive though
 
+- Dynamically update M rather than sweeping the lattice for Energy() after every move.
+
 ## References
 
 1. Mintu Mondal, Sanjeev Kumar, Madhavi Chand, Anand Kamlapure, Garima

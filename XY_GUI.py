@@ -60,7 +60,7 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
 
 ############################# Monte Carlo Algorithms #############################
 @njit(fastmath=FASTMATH, cache=CACHE)
-def Metropolis(spins, T, J, L, Acceptance, sweepcount):
+def Metropolis(spins, T, J, L, E, Acceptance, sweepcount):
     sweepcount += L**2
     flipped_sites = []
     for i in range(L**2):
@@ -81,11 +81,12 @@ def Metropolis(spins, T, J, L, Acceptance, sweepcount):
             spins[x,y]=phi # update the value in the lattice to the new angle
             Acceptance += 1 # increment acceptance counter
             flipped_sites.append((x,y)) # we don't need this for continuous spins
+            E += dE
 
-    return spins, Acceptance, flipped_sites, sweepcount
+    return spins, E, Acceptance, flipped_sites, sweepcount
 
 @njit(fastmath=FASTMATH, cache=CACHE)
-def Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount):
+def Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount):
     sweepcount += L**2
     flipped_sites = []
     for i in prange(L**2):
@@ -108,7 +109,8 @@ def Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount):
             spins[x,y]=phi #update the value
             Acceptance += 1 #acceptances are now counted
             flipped_sites.append((x,y))
-    return spins,Acceptance,flipped_sites,sweepcount
+            E += dE
+    return spins,E,Acceptance,flipped_sites,sweepcount
 
 @njit(fastmath=FASTMATH, cache=CACHE)
 def update_theta(AcceptanceRatio,theta):
@@ -300,14 +302,12 @@ def open_advanced_options():
 def run_simulation():
     global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
     if algorithm == "Metropolis":
-        spins, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, L, Acceptance, sweepcount)
-        E = Energy(spins, J)
+        spins, E, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, L, E, Acceptance, sweepcount)
         Mx, My, M = Mag(spins)
     elif algorithm == "Metropolis Limited Change":
-        spins, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount)
+        spins, E, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount)
         AcceptanceRatio = Acceptance / sweepcount
         theta = update_theta(AcceptanceRatio, theta)
-        E = Energy(spins, J)
         Mx, My, M = Mag(spins)
     elif algorithm == "Wolff":
         spins, cluster = Wolff(spins, T, J, L)
@@ -439,7 +439,7 @@ advanced_btn.grid(row=9, column=0, columnspan=3, padx=5, pady=10)
 # precompile numba functions
 if not CACHE:
     Wolff(spins, T, J, L)
-    Metropolis_Limited_Change(spins, T, J, L, Acceptance, theta, sweepcount)
+    Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount)
 
 # run the window and simulation
 root.after(50, update_observable_labels)
