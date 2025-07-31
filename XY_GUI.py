@@ -172,35 +172,27 @@ def Wolff(spins,T, J, L):
 
 ############################# Image Generation #############################
 
-def spins_to_image_init(spins):
-    L = spins.shape[0]
+def init_rgb_array(spins, L):
     rgb_array = np.zeros((L, L, 3), dtype=np.uint8)
-
     for i in range(L):
         for j in range(L):
             angle = spins[i, j] % (2 * np.pi)
             hue = angle / (2 * np.pi)  # Normalize to [0, 1)
             r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
             rgb_array[i, j] = [int(255 * r), int(255 * g), int(255 * b)]
-
-    img = Image.fromarray(rgb_array, mode='RGB')
-    img = img.resize((L * scale, L * scale), resample=Image.NEAREST)
     return rgb_array
 
-def spins_to_image(spins):
-    L = spins.shape[0]
-    rgb_array = np.zeros((L, L, 3), dtype=np.uint8)
+def update_spins_image(spins, flipped_sites, rgb_array, scale):
+    for x, y in flipped_sites:
+        angle = spins[x, y] % (2 * np.pi)
+        hue = angle / (2 * np.pi)  # Normalize to [0, 1)
+        r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+        rgb_array[x, y] = [int(255 * r), int(255 * g), int(255 * b)]
 
-    for i in range(L):
-        for j in range(L):
-            angle = spins[i, j] % (2 * np.pi)
-            hue = angle / (2 * np.pi)  # Normalize to [0, 1)
-            r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
-            rgb_array[i, j] = [int(255 * r), int(255 * g), int(255 * b)]
+    # Scale using repeat
+    scaled_array = np.repeat(np.repeat(rgb_array, scale, axis=0), scale, axis=1)
 
-    img = Image.fromarray(rgb_array, mode='RGB')
-    img = img.resize((L * scale, L * scale), resample=Image.NEAREST)
-    return img
+    return Image.fromarray(scaled_array, 'RGB')
 
 def reset_for_parameter_change():
     global Acceptance, sweepcount, E, Mx, My, M
@@ -273,8 +265,8 @@ def update_size_choice(event):
     L = int(size_dropdown.get())
     scale = 512 // L
     spins = np.random.rand(L, L) * 2 * np.pi
-    rgb_array = spins_to_image_init(spins)
-    pil_img = spins_to_image(spins)
+    rgb_array = init_rgb_array(spins, L)
+    pil_img = update_spins_image(spins, [], rgb_array, scale)
     label_img = ImageTk.PhotoImage(pil_img)
     reset_for_parameter_change()
 
@@ -299,6 +291,17 @@ def open_advanced_options():
     apply_btn = ttk.Button(adv_win, text="Apply", command=apply_options)
     apply_btn.pack(pady=10)
 
+def update_plot(E, M, L, data_buffer):
+    global root, line
+    if plot_observable == "Energy":
+        data_buffer.append(E / L**2)
+    elif plot_observable == "Magnetization":
+        data_buffer.append(M / L**2)
+    elif plot_observable == "Acceptance":
+        data_buffer.append(Acceptance / sweepcount)
+    line.set_ydata(list(data_buffer) + [0] * (100 - len(data_buffer)))
+    root.after_idle(canvas.draw)
+
 def run_simulation():
     global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta
     if algorithm == "Metropolis":
@@ -314,21 +317,15 @@ def run_simulation():
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
 
-    pil_img = spins_to_image(spins)
+    # update the image
+    pil_img = update_spins_image(spins, flipped_sites, rgb_array, scale)
     label_img = ImageTk.PhotoImage(pil_img)
     label.configure(image=label_img)
 
-    # update the plot after 2 run_simulation calls (~10ms)
-    count = (count + 1) % 2
+    # update the plot after 3 run_simulation calls (~15ms)
+    count = (count + 1) % 3
     if count == 0:
-        if plot_observable == "Energy":
-            data_buffer.append(E / L**2)
-        elif plot_observable == "Magnetization":
-            data_buffer.append(M / L**2)
-        elif plot_observable == "Acceptance":
-            data_buffer.append(Acceptance / sweepcount)
-        line.set_ydata(list(data_buffer) + [0] * (100 - len(data_buffer)))
-        canvas.draw()
+        update_plot(E, M, L, data_buffer)
 
     root.after(5, run_simulation)
 
@@ -338,7 +335,7 @@ E = Energy(spins,J)
 Mx,My,M = Mag(spins)
 
 # initialize the RGB image array
-rgb_array = spins_to_image_init(spins)
+rgb_array = init_rgb_array(spins, L)
 
 ## Set up the GUI
 # Create the main window
