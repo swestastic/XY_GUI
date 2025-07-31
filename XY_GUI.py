@@ -2,32 +2,49 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 import random
-from numba import jit, prange
+from numba import njit, prange
 from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from collections import deque
 import colorsys
+import argparse
+
+# Set up command line argument parsing
+parser = argparse.ArgumentParser(description="Ising Model Simulation GUI")
+parser.add_argument("--cache", type=bool, default=False, help="Enable caching for faster simulations")
 
 scale = 8 # scaling factor for display
 update_delay = 5 # milliseconds between updates
 
 # parameters
-L = 50 # lattice size (LxL)
+L = 64 # lattice size (LxL)
 T = 0.866 # temperature
-J = 1 # coupling constant
+J = 1.0 # coupling constant
+h = 0.0 # external magnetic field
+
+# initializations
 Acceptance = 0 # initialize acceptance counter
-plot_observable = "Magnetization" # what to plot in the live graph
-algorithm = "Metropolis" # which algorithm to use
 sweepcount = 1 # number of sweeps done
 count = 0 # counter for plot updates
 theta = np.pi
 
+scale = 512 // L # scaling factor for display
+simulation_update_delay = 16 # milliseconds between updates, 16ms ~ 60 FPS 
+
+# Numba settings
+FASTMATH = True
+PARALLEL = True
+CACHE = parser.parse_args().cache
+
+plot_observable = "Magnetization" # "Magnetization", "Energy", or "Acceptance"
+algorithm = "Metropolis" # "Metropolis", "Metropolis Limited Change", or "Wolff"
+
 # initialize spins randomly
 spins = 2*np.pi*np.random.rand(L, L)
 
-@jit(nopython=True)
-def Energy(spins,J): # Calculates the energy of a given lattice of spins  
+@njit(fastmath=FASTMATH, parallel=PARALLEL, cache=CACHE)
+def Energy(spins,J): # Calculates the energy of a given lattice of spins
   # Assumes a square lattice
   TotalEnergy=0
   L=spins.shape[0] 
@@ -37,7 +54,7 @@ def Energy(spins,J): # Calculates the energy of a given lattice of spins
   TotalEnergy*=-J/2
   return TotalEnergy
 
-@jit(nopython=True)
+@njit(fastmath=FASTMATH, cache=CACHE)
 def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx,My,M]
   #The magnetization is given by the sum of the X and Y spin components.
   #this function returns X and Y components in an array
@@ -46,23 +63,21 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
   M = np.sqrt(Mx**2+My**2)
   return np.array([Mx,My,M])
 
-def update_theta(AcceptanceRatio,theta,counter):
+@njit(fastmath=FASTMATH, cache=CACHE)
+def update_theta(AcceptanceRatio,theta):
     ##Alternative method to try: Halving and doubling based on threshhold (e.g if AR>0.5, theta=theta*2, if AR<0.5, theta=theta/2)
     if AcceptanceRatio >= 0.5:
-        # theta=np.pi
         theta *= 2
         if theta > np.pi:
             theta = np.pi # This is the maximum range, anything larger than this will be cut off anyways
     else:
-        #theta=4*(0.1-np.pi)*(AcceptanceRatio-0.5)**2+np.pi
-        # theta=0.1+2*np.pi*AcceptanceRatio
         theta /= 2
     
     if theta < 0.1:
         theta = 0.1
     return theta
 
-@jit(nopython=True)
+@njit(fastmath=FASTMATH, cache=CACHE)
 def Metropolis(spins,T,J,Acceptance, sweepcount):
     L = spins.shape[0]
     sweepcount += L**2
@@ -88,7 +103,7 @@ def Metropolis(spins,T,J,Acceptance, sweepcount):
 
     return spins, Acceptance, flipped_sites, sweepcount
 
-@jit(nopython=True)
+@njit(fastmath=FASTMATH, cache=CACHE)
 def Metropolis_Limited_Change(spins,T,J,Acceptance,theta, sweepcount):
     L = spins.shape[0]
     sweepcount += L**2
@@ -115,7 +130,7 @@ def Metropolis_Limited_Change(spins,T,J,Acceptance,theta, sweepcount):
             flipped_sites.append((x,y))
     return spins,Acceptance,flipped_sites,sweepcount
 
-@jit(nopython=True)
+@njit(fastmath=FASTMATH, cache=CACHE)
 def Wolff(spins,J,T):
     # Pick a random site to start the cluster 
     x = np.random.randint(L)
@@ -268,7 +283,7 @@ def run_simulation():
     elif algorithm == "Metropolis Limited Change":
         spins, Acceptance, flipped_sites, sweepcount = Metropolis_Limited_Change(spins, T, J, Acceptance, theta, sweepcount)
         AcceptanceRatio = Acceptance / sweepcount
-        theta = update_theta(AcceptanceRatio, theta, count)
+        theta = update_theta(AcceptanceRatio, theta)
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
     elif algorithm == "Wolff":
