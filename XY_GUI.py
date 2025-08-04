@@ -9,6 +9,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from collections import deque
 import colorsys
 import argparse
+import time
 
 # Set up command line argument parsing
 parser = argparse.ArgumentParser(description="Ising Model Simulation GUI")
@@ -23,6 +24,7 @@ h = 0.0 # external magnetic field
 # initializations
 Acceptance = 0 # initialize acceptance counter
 sweepcount = 1 # number of sweeps done
+sweep_counter = 0 # counter for sweeps per second
 count = 0 # counter for plot updates
 theta = np.pi
 
@@ -210,11 +212,13 @@ def update_spins_image(spins, flipped_sites, rgb_array, scale):
     return Image.fromarray(scaled_array, 'RGB')
 
 def reset_for_parameter_change():
-    global Acceptance, sweepcount, E, Mx, My, M
+    global Acceptance, sweepcount, E, Mx, My, M, sweep_counter, timer
     Acceptance = 0
     sweepcount = 1
     E = Energy(spins,J)
     Mx, My, M = Mag(spins)
+    timer = time.time()
+    sweep_counter = 0
 
 def update_temp(val):
     global T
@@ -269,6 +273,7 @@ def update_observable_labels():
     energy_label.config(text=f"Energy / (L^2 J): {E / (L**2):.3f}")
     magnetization_label.config(text=f"Magnetization (M/L^2): {M / (L**2):.3f}")
     acceptance_label.config(text=f"Acceptance: {Acceptance/sweepcount:.3f}")
+    timer_label.config(text=f"Sweeps/second: {sweep_counter / (time.time() - timer - 0.1):.3f}")
     root.after(50, update_observable_labels)
 
 def update_algorithm_choice(event):
@@ -324,7 +329,7 @@ def update_plot(E, M, L, data_buffer):
     root.after_idle(canvas.draw)
 
 def run_simulation():
-    global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta, flipped_sites
+    global spins, T, J, Acceptance, label_img, label, count, E, M, sweepcount, algorithm, theta, flipped_sites, sweep_counter
     if algorithm == "Metropolis":
         spins, E, Acceptance, flipped_sites, sweepcount = Metropolis(spins, T, J, L, E, Acceptance, sweepcount)
         Mx, My, M = Mag(spins)
@@ -341,6 +346,7 @@ def run_simulation():
         spins = overrelaxation(spins, L)
         E = Energy(spins, J)
         Mx, My, M = Mag(spins)
+    sweep_counter += 1
     # update the image
     pil_img = update_spins_image(spins, flipped_sites, rgb_array, scale)
     label_img = ImageTk.PhotoImage(pil_img)
@@ -360,6 +366,9 @@ Mx,My,M = Mag(spins)
 
 # initialize the RGB image array
 rgb_array = init_rgb_array(spins, L)
+
+# initialize the timer
+timer = time.time() # timer for sweeps per second
 
 ## Set up the GUI
 # Create the main window
@@ -452,9 +461,9 @@ energy_label.config(width=25)
 magnetization_label = ttk.Label(slider_frame, text=f"Magnetization: {M / (L**2):>7.3f}")
 magnetization_label.grid(row=6, column=2, padx=5, pady=5)
 magnetization_label.config(width=25)
-# timer_label = ttk.Label(slider_frame, text=f"Sweeps/second: {sweep_counter / (time.time() - timer - 0.1):>7.3f}")
-# timer_label.grid(row=7, column=2, padx=5, pady=5)
-# timer_label.config(width=25)
+timer_label = ttk.Label(slider_frame, text=f"Sweeps/second: {sweep_counter / (time.time() - timer - 0.1):>7.3f}")
+timer_label.grid(row=7, column=2, padx=5, pady=5)
+timer_label.config(width=25)
 
 
 algorithm_label = ttk.Label(slider_frame, text="Algorithm:")
@@ -473,6 +482,8 @@ if not CACHE:
     Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount)
     overrelaxation(spins, L)
 
+# Get a fresh timer so the initial sweeps/sec calculation isn't skewed
+timer = time.time()
 # run the window and simulation
 root.after(50, update_observable_labels)
 root.after(5, run_simulation)
