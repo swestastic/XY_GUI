@@ -66,7 +66,9 @@ def Mag(spins): #magnetization function returns X,Y components and Magnitude [Mx
 @njit(fastmath=FASTMATH, cache=CACHE)
 def Metropolis(spins, T, J, L, E, Acceptance, sweepcount):
     sweepcount += L**2
-    flipped_sites = []
+    flip_count = 0
+    flipped_sites = np.zeros((L**2, 2), dtype=np.int32)  # Preallocate for flipped sites
+
     for i in range(L**2):
         phi=2*np.pi*np.random.rand() #phi is our new random angle between 0,2pi
         x = np.random.randint(L)
@@ -84,15 +86,17 @@ def Metropolis(spins, T, J, L, E, Acceptance, sweepcount):
         if np.random.random() < np.exp(-dE/T):
             spins[x,y]=phi # update the value in the lattice to the new angle
             Acceptance += 1 # increment acceptance counter
-            flipped_sites.append((x,y)) # we don't need this for continuous spins
+            flipped_sites[flip_count] = (x,y)
             E += dE
+            flip_count += 1
 
-    return spins, E, Acceptance, flipped_sites, sweepcount
+    return spins, E, Acceptance, flipped_sites[:flip_count], sweepcount
 
 @njit(fastmath=FASTMATH, cache=CACHE)
 def Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount):
     sweepcount += L**2
-    flipped_sites = []
+    flip_count = 0
+    flipped_sites = np.zeros((L**2, 2), dtype=np.int32)  # Preallocate for flipped sites
     for i in prange(L**2):
         x = np.random.randint(L)
         y = np.random.randint(L)
@@ -112,9 +116,9 @@ def Metropolis_Limited_Change(spins, T, J, L, E, Acceptance, theta, sweepcount):
         if np.random.random() < np.exp(-dE/T):
             spins[x,y]=phi #update the value
             Acceptance += 1 #acceptances are now counted
-            flipped_sites.append((x,y))
+            flipped_sites[flip_count] = (x,y)
             E += dE
-    return spins,E,Acceptance,flipped_sites,sweepcount
+    return spins,E,Acceptance,flipped_sites[:flip_count],sweepcount
 
 @njit(fastmath=FASTMATH, cache=CACHE)
 def update_theta(AcceptanceRatio,theta):
