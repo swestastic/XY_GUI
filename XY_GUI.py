@@ -14,6 +14,8 @@ import time
 # Set up command line argument parsing
 parser = argparse.ArgumentParser(description="Ising Model Simulation GUI")
 parser.add_argument("--cache", type=bool, default=False, help="Enable caching for faster simulations")
+parser.add_argument("--fastmath", type=bool, default=True, help="Enable fast math optimizations")
+parser.add_argument("--parallel", type=bool, default=True, help="Enable parallel processing")
 
 # parameters
 L = 64 # lattice size (LxL)
@@ -31,8 +33,8 @@ theta = np.pi
 scale = 512 // L # scaling factor for display
 
 # Numba settings
-FASTMATH = True
-PARALLEL = True
+FASTMATH = parser.parse_args().fastmath
+PARALLEL = parser.parse_args().parallel
 CACHE = parser.parse_args().cache
 
 plot_observable = "Magnetization" # "Magnetization", "Energy", or "Acceptance"
@@ -296,27 +298,6 @@ def update_size_choice(event):
         flipped_sites = [(i, j) for i in range(L) for j in range(L)]
     reset_for_parameter_change()
 
-def open_advanced_options():
-    def apply_options():
-        global FASTMATH, PARALLEL
-        FASTMATH = fastmath_var.get()
-        PARALLEL = parallel_var.get()
-        adv_win.destroy()
-
-    adv_win = tk.Toplevel(root)
-    adv_win.title("Advanced Options")
-    adv_win.geometry("250x150")
-    fastmath_var = tk.BooleanVar(value=FASTMATH)
-    parallel_var = tk.BooleanVar(value=PARALLEL)
-
-    fastmath_check = ttk.Checkbutton(adv_win, text="Enable FASTMATH", variable=fastmath_var)
-    fastmath_check.pack(pady=10)
-    parallel_check = ttk.Checkbutton(adv_win, text="Enable PARALLEL", variable=parallel_var)
-    parallel_check.pack(pady=10)
-
-    apply_btn = ttk.Button(adv_win, text="Apply", command=apply_options)
-    apply_btn.pack(pady=10)
-
 def update_plot(E, M, L, data_buffer):
     global root, line
     if plot_observable == "Energy":
@@ -472,9 +453,6 @@ algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Metropoli
 algorithm_dropdown.current(0)
 algorithm_dropdown.grid(row=5, column=1, padx=5, pady=5)
 algorithm_dropdown.bind("<<ComboboxSelected>>", update_algorithm_choice)
-
-advanced_btn = ttk.Button(slider_frame, text="Advanced Options", command=open_advanced_options)
-advanced_btn.grid(row=9, column=0, columnspan=3, padx=5, pady=10)
 
 # precompile numba functions
 if not CACHE:
