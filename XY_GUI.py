@@ -226,8 +226,8 @@ def update_temp(val):
 def update_coupling(val):
     global J
     J = float(val)
-    coupling_entry.delete(0, tk.END)
-    coupling_entry.insert(0, f"{J:.2f}")
+    coupling_entry_main.delete(0, tk.END)
+    coupling_entry_main.insert(0, f"{J:.2f}")
     reset_for_parameter_change()
 
 def update_temp_entry(val):
@@ -379,7 +379,7 @@ slider_frame = ttk.Frame(root)
 slider_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
 plot_frame = ttk.Frame(slider_frame)
-plot_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=5)
+plot_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5)
 
 # Create the matplotlib figure and axis for plotting
 plt.style.use('fast')
@@ -399,59 +399,69 @@ fig.tight_layout()
 
 # Create the sliders and add them to the slider frame
 temp_label = ttk.Label(slider_frame, text="Temperature (T):")
-temp_label.grid(row=0, column=0, padx=5, pady=5)
-temp_slider = ttk.Scale(slider_frame, from_=0.1, to=5.0, orient=tk.HORIZONTAL, value=T)
-temp_slider.grid(row=0, column=1, padx=5, pady=5)
+temp_label.grid(row=1, column=0, padx=5, pady=5)
+temp_slider = ttk.Scale(slider_frame, from_=0.1, to=5.0, orient=tk.HORIZONTAL, value=T, length=250)
+temp_slider.grid(row=1, column=1, padx=5, pady=5)
 temp_slider.config(command=update_temp)
 temp_entry = ttk.Entry(slider_frame, width=5)
 temp_entry.insert(0, str(T))  # set initial value
 temp_entry.bind("<Return>", lambda event: update_temp_entry(temp_entry.get()))
-temp_entry.grid(row=0, column=2, padx=5, pady=5)
+temp_entry.grid(row=1, column=2, padx=5, pady=5)
 
 
 coupling_label = ttk.Label(slider_frame, text="Coupling (J):")
-coupling_label.grid(row=1, column=0, padx=5, pady=5)
-coupling_slider = ttk.Scale(slider_frame, from_=-2.0, to=2.0, orient=tk.HORIZONTAL, value=J)
-coupling_slider.grid(row=1, column=1, padx=5, pady=5)
+coupling_label.grid(row=2, column=0, padx=5, pady=5)
+coupling_slider = ttk.Scale(slider_frame, from_=-2.0, to=2.0, orient=tk.HORIZONTAL, value=J, length=250)
+coupling_slider.grid(row=2, column=1, padx=5, pady=5)
 coupling_slider.config(command=update_coupling)
-coupling_entry = ttk.Entry(slider_frame, width=5)
-coupling_entry.insert(0, str(J))  # set initial value
-coupling_entry.bind("<Return>", lambda event: update_coupling_entry(coupling_entry.get()))
-coupling_entry.grid(row=1, column=2, padx=5, pady=5)
+coupling_entry_main = ttk.Entry(slider_frame, width=5)
+coupling_entry_main.insert(0, str(J))  # set initial value
+coupling_entry_main.bind("<Return>", lambda event: update_coupling_entry(coupling_entry_main.get()))
+coupling_entry_main.grid(row=2, column=2, padx=5, pady=5)
+
+# magneticfield_label = ttk.Label(slider_frame, text="Magnetic Field (h):")
+# magneticfield_label.grid(row=3, column=0, padx=5, pady=5)
+# magneticfield_slider = ttk.Scale(slider_frame, from_=-2.0, to=2.0, orient=tk.HORIZONTAL, value=h, length=250)
+# magneticfield_slider.grid(row=3, column=1, padx=5, pady=5)
+# magneticfield_slider.config(command=update_magneticfield)
+# magneticfield_entry_main = ttk.Entry(slider_frame, width=5)
+# magneticfield_entry_main.insert(0, str(h))  # set initial value
+# magneticfield_entry_main.bind("<Return>", lambda event: update_magneticfield_entry(magneticfield_entry_main.get()))
+# magneticfield_entry_main.grid(row=3, column=2, padx=5, pady=5)
 
 observable_label = ttk.Label(slider_frame, text="Observable to Plot:")
-observable_label.grid(row=3, column=0, padx=5, pady=5)
-
+observable_label.grid(row=4, column=0, padx=5, pady=5)
 observable_dropdown = ttk.Combobox(slider_frame, values=["Magnetization", "Energy", "Acceptance"], state="readonly")
 observable_dropdown.current(0)
-observable_dropdown.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
-
+observable_dropdown.grid(row=4, column=1, padx=5, pady=5)
 observable_dropdown.bind("<<ComboboxSelected>>", update_plot_choice)
 
 size_label = ttk.Label(slider_frame, text="Size (L):")
-size_label.grid(row=10, column=0, padx=5, pady=5)
-
+size_label.grid(row=6, column=0, padx=5, pady=5)
 size_dropdown = ttk.Combobox(slider_frame, values=[4, 8, 16, 32, 64, 128, 256], state="readonly")
 size_dropdown.current(4)
-size_dropdown.grid(row=10, column=0, columnspan=3, padx=5, pady=5)
-
+size_dropdown.grid(row=6, column=1, padx=5, pady=5)
 size_dropdown.bind("<<ComboboxSelected>>", update_size_choice)
 
-acceptance_label = ttk.Label(slider_frame, text=f"Acceptance: {Acceptance/sweepcount:.3f}")
-acceptance_label.grid(row=4, column=0, columnspan=3, padx=5, pady=5)
-
-energy_label = ttk.Label(slider_frame, text=f"Energy / (L^2 J): {E / (L**2):.3f}")
-energy_label.grid(row=5, column=0, columnspan=3, padx=5, pady=5)
-magnetization_label = ttk.Label(slider_frame, text=f"Magnetization (M/L^2): {M / (L**2):.3f}")
-magnetization_label.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
+acceptance_label = ttk.Label(slider_frame, text=f"Acceptance: {Acceptance/sweepcount:>7.3f}")
+acceptance_label.grid(row=4, column=2, padx=5, pady=5)
+acceptance_label.config(width=25)
+energy_label = ttk.Label(slider_frame, text=f"Energy: {E / (L**2):>7.3f}")
+energy_label.grid(row=5, column=2, padx=5, pady=5)
+energy_label.config(width=25)
+magnetization_label = ttk.Label(slider_frame, text=f"Magnetization: {M / (L**2):>7.3f}")
+magnetization_label.grid(row=6, column=2, padx=5, pady=5)
+magnetization_label.config(width=25)
+# timer_label = ttk.Label(slider_frame, text=f"Sweeps/second: {sweep_counter / (time.time() - timer - 0.1):>7.3f}")
+# timer_label.grid(row=7, column=2, padx=5, pady=5)
+# timer_label.config(width=25)
 
 
 algorithm_label = ttk.Label(slider_frame, text="Algorithm:")
-algorithm_label.grid(row=7, column=0, padx=5, pady=5)
+algorithm_label.grid(row=5, column=0, padx=5, pady=5)
 algorithm_dropdown = ttk.Combobox(slider_frame, values=["Metropolis", "Metropolis Limited Change", "Wolff", "Overrelaxation"], state="readonly")
 algorithm_dropdown.current(0)
-algorithm_dropdown.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
-
+algorithm_dropdown.grid(row=5, column=1, padx=5, pady=5)
 algorithm_dropdown.bind("<<ComboboxSelected>>", update_algorithm_choice)
 
 advanced_btn = ttk.Button(slider_frame, text="Advanced Options", command=open_advanced_options)
