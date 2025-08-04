@@ -40,7 +40,7 @@ An update will either be accepted or rejected based on a Boltzmann probability, 
 
 ## Usage
 
-Simply run `python3 XY_GUI.py` to open a Tkinter window and run the simulation. The slider bars for $T$ and $J$ are intuitive to use, and the simulation will update automatically in correspondence with them.
+Simply run `python3 XY_GUI.py` to open a Tkinter window and run the simulation. The slider bars for $T$ and $J$ are intuitive to use, and the simulation will update automatically in correspondence with them. There are also flags `--fastmath`, `--cache`, and `--parallel`, which are used for triggering Numba optimizations. These can be passed `True` or `False`
 
 ## Future Work
 
@@ -50,7 +50,7 @@ Simply run `python3 XY_GUI.py` to open a Tkinter window and run the simulation. 
 
 - Possibly add a quiver mode? Where it would show arrows rather than colors. This may be more resource intensive though
 
-- Dynamically update M rather than sweeping the lattice for Energy() after every move.
+- Dynamically update E and M rather than sweeping the lattice after every move.
 
 ## References
 

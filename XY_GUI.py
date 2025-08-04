@@ -272,8 +272,8 @@ def update_plot_choice(event):
     canvas.draw()
 
 def update_observable_labels():
-    energy_label.config(text=f"Energy / (L^2 J): {E / (L**2):.3f}")
-    magnetization_label.config(text=f"Magnetization (M/L^2): {M / (L**2):.3f}")
+    energy_label.config(text=f"Energy: {E / (L**2):.3f}")
+    magnetization_label.config(text=f"Magnetization: {M / (L**2):.3f}")
     acceptance_label.config(text=f"Acceptance: {Acceptance/sweepcount:.3f}")
     timer_label.config(text=f"Sweeps/second: {sweep_counter / (time.time() - timer - 0.1):.3f}")
     root.after(50, update_observable_labels)
